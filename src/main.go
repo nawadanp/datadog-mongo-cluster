@@ -49,12 +49,26 @@ func parseFlags() params {
 func main() {
 	log.Println("Starting job")
 	config := parseFlags()
-	mongoSession := openMongoSession(config.Mongo)
+	mongoSession, err := openMongoSession(config.Mongo)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	defer mongoSession.Close()
 
 	colDatabases := mongoSession.DB("config").C("databases")
 
 	var series series
-	series.Series = append(series.Series, getDatabasesCount(colDatabases, config.Mongo.Cluster))
-	pushToDatadog(config.DatadogKey, series)
+	dbCount, err := getDatabasesCount(colDatabases, config.Mongo.Cluster)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	series.Series = append(series.Series, dbCount)
+	err = pushToDatadog(config.DatadogKey, series)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	return
 }

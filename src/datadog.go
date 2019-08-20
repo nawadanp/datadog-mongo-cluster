@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -15,12 +16,12 @@ type metric struct {
 }
 
 type series struct {
-	Series []metric `json:"series"`
+	Series []*metric `json:"series"`
 }
 
 type points [2]float64
 
-func pushToDatadog(key string, series series) {
+func pushToDatadog(key string, series series) error {
 	// Build the query
 	url := dataDogAPIURL + "/series?api_key=" + key
 	jsonStr, _ := json.Marshal(series)
@@ -31,12 +32,15 @@ func pushToDatadog(key string, series series) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		e := fmt.Errorf("HTTP Request Error : %d", err)
+		return e
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 202 {
-		log.Fatalf("API Error : %d", resp.StatusCode)
+		e := fmt.Errorf("Datadog API Error : %d", resp.StatusCode)
+		return e
 	}
 	log.Println("Request sent")
+	return nil
 }

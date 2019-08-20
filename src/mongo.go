@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,20 +15,27 @@ type confDatabase struct {
 	Partitioned bool   `bson:"partitioned"`
 }
 
-func openMongoSession(config paramsMongo) *mgo.Session {
-	session, err := mgo.DialWithInfo(buildDial(config))
+func openMongoSession(config paramsMongo) (*mgo.Session, error) {
+	mongoDialInfo, err := buildDial(config)
 	if err != nil {
-		log.Fatalf("could not connect to %s: %s\n", config.MongoURI, err)
+		e := fmt.Errorf("unable to build dialinfo: %s", err)
+		return nil, e
+	}
+	session, err := mgo.DialWithInfo(mongoDialInfo)
+	if err != nil {
+		e := fmt.Errorf("could not connect to %s: %s", config.MongoURI, err)
+		return nil, e
 	}
 	log.Printf("Connected to %s\n", config.MongoURI)
 
-	return session
+	return session, nil
 }
 
-func buildDial(config paramsMongo) *mgo.DialInfo {
+func buildDial(config paramsMongo) (*mgo.DialInfo, error) {
 	dialInfo, err := mgo.ParseURL(config.MongoURI)
 	if err != nil {
-		log.Fatalf("Can't parse mongo URI : %s\n", err)
+		e := fmt.Errorf("can't parse mongo URI: %s", err)
+		return nil, e
 	}
 
 	if dialInfo.AppName == "" {
@@ -35,12 +44,13 @@ func buildDial(config paramsMongo) *mgo.DialInfo {
 
 	dialInfo.Timeout = time.Duration(config.MongoTimeoutMS) * time.Millisecond
 	dialInfo.ReadTimeout = 60 * time.Minute
-	return dialInfo
+	return dialInfo, nil
 }
 
-func getDatabasesCount(colDatabases *mgo.Collection, cluster string) metric {
+func getDatabasesCount(colDatabases *mgo.Collection, cluster string) (*metric, error) {
 	// Define default metric settings
-	var dbCount metric
+	//var dbCount *metric
+	dbCount := &metric{}
 	dbCount.Type = "gauge"
 	dbCount.Metric = "custom.mongodb.cluster.databases"
 
@@ -51,11 +61,12 @@ func getDatabasesCount(colDatabases *mgo.Collection, cluster string) metric {
 	// Get databases count
 	dbTotal, err := colDatabases.Count()
 	if err != nil {
-		log.Fatalf("Error while counting number of database : %s\n", err)
+		e := fmt.Errorf("Error while counting number of database: %s", err)
+		return nil, e
 	}
 
 	if dbTotal == 0 {
-		log.Fatalln("'databases' collection is empty or missing. Are you connected on a mongos ?")
+		return nil, errors.New("'databases' collection is empty or missing. Are you connected on a mongos ?")
 	}
 
 	var point points
@@ -63,5 +74,5 @@ func getDatabasesCount(colDatabases *mgo.Collection, cluster string) metric {
 	point[1] = float64(dbTotal)
 
 	dbCount.Points = append(dbCount.Points, point)
-	return dbCount
+	return dbCount, nil
 }
