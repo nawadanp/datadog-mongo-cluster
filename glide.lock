@@ -1,0 +1,15 @@
+hash: c42dc6284f35ab332637f966b23c8418b08573e82e2214bb476390dda28061e2
+updated: 2019-08-20T16:56:22.493636024+02:00
+imports:
+- name: github.com/globalsign/mgo
+  version: eeefdecb41b842af6dc652aaea4026e8403e62df
+  subpackages:
+  - bson
+  - internal/json
+  - internal/sasl
+  - internal/scram
+- name: github.com/spf13/cobra
+  version: f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5
+  subpackages:
+  - cobra
+testImports: []
